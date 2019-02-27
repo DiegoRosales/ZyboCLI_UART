@@ -162,16 +162,20 @@ const TickType_t xMaxWait = 200UL / portTICK_PERIOD_MS;
 	/* Only a single port is supported. */
 	( void ) pxPort;
 
-	/* Start the transmission.  The interrupt service routine will complete the
-	transmission if necessary. */
-	XUartPs_Send( &xUARTInstance, ( void * ) pcString, usStringLength );
-
 	/* Wait until the string has been transmitted before exiting this function,
 	otherwise there is a risk the calling function will overwrite the string
 	pointed to by the pcString parameter while it is still being transmitted.
 	The calling task will wait in the Blocked state (so not consuming any
 	processing time) until the semaphore is available. */
 	xSemaphoreTake( xTxCompleteSemaphore, xMaxWait );
+
+	/* Start the transmission.  The interrupt service routine will complete the
+	transmission if necessary. */
+	XUartPs_Send( &xUARTInstance, ( void * ) pcString, usStringLength );
+
+	// Take to avoid exiting this untill the buffer has been written
+	xSemaphoreTake( xTxCompleteSemaphore, xMaxWait );
+	xSemaphoreGive( xTxCompleteSemaphore );
 }
 /*-----------------------------------------------------------*/
 
