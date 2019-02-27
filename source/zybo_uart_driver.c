@@ -99,7 +99,7 @@ static void prvUARTCommandConsoleTask( void *pvParameters )
 					xReturned = FreeRTOS_CLIProcessCommand( cInputString, pcOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE );
 
 					/* Write the generated string to the UART. */
-					vSerialPutString( xPort, ( signed char * ) pcOutputString, ( unsigned short ) strlen( pcOutputString ) );
+					if ( pcOutputString[ 0 ] != 0x0 ) vSerialPutString( xPort, ( signed char * ) pcOutputString, ( unsigned short ) strlen( pcOutputString ) );
 
 				} while( xReturned != pdFALSE );
 
