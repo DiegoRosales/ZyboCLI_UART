@@ -136,6 +136,8 @@ XUartPs_Config *pxConfig;
 	/* Set the receive timeout. */
 	XUartPs_SetRecvTimeout( &xUARTInstance, 8 );
 
+	xSemaphoreGive( xTxCompleteSemaphore );
+
 	return ( xComPortHandle ) 0;
 }
 /*-----------------------------------------------------------*/
@@ -157,7 +159,7 @@ BaseType_t xReturn;
 
 void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString, unsigned short usStringLength )
 {
-const TickType_t xMaxWait = 200UL / portTICK_PERIOD_MS;
+	const TickType_t xMaxWait = 500UL / portTICK_PERIOD_MS;
 
 	/* Only a single port is supported. */
 	( void ) pxPort;
@@ -167,13 +169,13 @@ const TickType_t xMaxWait = 200UL / portTICK_PERIOD_MS;
 	pointed to by the pcString parameter while it is still being transmitted.
 	The calling task will wait in the Blocked state (so not consuming any
 	processing time) until the semaphore is available. */
-	xSemaphoreTake( xTxCompleteSemaphore, xMaxWait );
+	while(xSemaphoreTake( xTxCompleteSemaphore, xMaxWait ) == pdFALSE);
 
 	/* Start the transmission.  The interrupt service routine will complete the
 	transmission if necessary. */
 	XUartPs_Send( &xUARTInstance, ( void * ) pcString, usStringLength );
 
-	// Take to avoid exiting this untill the buffer has been written
+	// Take to avoid exiting this until the buffer has been written
 	xSemaphoreTake( xTxCompleteSemaphore, xMaxWait );
 	xSemaphoreGive( xTxCompleteSemaphore );
 }
@@ -181,8 +183,12 @@ const TickType_t xMaxWait = 200UL / portTICK_PERIOD_MS;
 
 signed portBASE_TYPE xSerialPutChar( xComPortHandle pxPort, signed char cOutChar, TickType_t xBlockTime )
 {
+	const TickType_t xMaxWait = 500UL / portTICK_PERIOD_MS;
+
 	/* Only a single port is supported. */
 	( void ) pxPort;
+
+	while(xSemaphoreTake( xTxCompleteSemaphore, xMaxWait ) == pdFALSE);
 
 	/* Send the character. */
 	XUartPs_Send( &xUARTInstance, ( void * ) &cOutChar, sizeof( cOutChar ) );
@@ -190,6 +196,7 @@ signed portBASE_TYPE xSerialPutChar( xComPortHandle pxPort, signed char cOutChar
 	/* Wait for the transmission to be complete so the semaphore is left in the
 	correct state for the next time vSerialPutString() is called. */
 	xSemaphoreTake( xTxCompleteSemaphore, xBlockTime );
+	xSemaphoreGive( xTxCompleteSemaphore );
 
 	return pdPASS;
 }
